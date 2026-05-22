@@ -11,26 +11,6 @@
 | `cutexing/encoder:latest` | `Dockerfile` | 原始 Arch Linux 壓片環境。包含 `git`、`yay`、`aom`、`vapoursynth`、`ffms2`、`libvpx`、`mkvtoolnix-cli`、官方 `svt-av1`、`vmaf`、`av1an`、`wget`、`unzip`、`nano`、`opus-tools`、`python-pip`，以及多個 VapourSynth AUR plugins、`kagefunc.py`、`fvsfunc.py`、`mvsfunc.py`。 |
 | `cutexing/encoder:psyex-v3.0.2B-tools` | `variants/psyex-tools/Dockerfile` | 以 `cutexing/encoder:latest` 為 base，將 `SvtAv1EncApp` 替換為 `SVT-AV1-PSYEX v3.0.2-B`，並加入 `rclone`、`gh`、`fuse3` / `fusermount3`、`mktorrent`。目前已推送 digest：`sha256:89ea6918d5cd9f2338496f495de817066325c9f5cdf7404bd3328af40a6e73d0`。 |
 
-## Build / Push
-
-原始版本：
-
-```bash
-docker build -t cutexing/encoder:latest -f Dockerfile .
-docker push cutexing/encoder:latest
-```
-
-PSYEX + tools 版本：
-
-```bash
-docker build --pull \
-  --build-arg BASE_IMAGE=cutexing/encoder:latest \
-  -t cutexing/encoder:psyex-v3.0.2B-tools \
-  -f variants/psyex-tools/Dockerfile .
-
-docker push cutexing/encoder:psyex-v3.0.2B-tools
-```
-
 ## 基本使用
 
 把本機影片資料夾掛到容器內 `/videos`：
