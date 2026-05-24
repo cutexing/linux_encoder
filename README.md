@@ -9,7 +9,7 @@
 | Docker tag | Dockerfile | 內容 |
 | --- | --- | --- |
 | `cutexing/encoder:latest` | `Dockerfile` | 原始 Arch Linux 壓片環境。包含 `git`、`yay`、`aom`、`vapoursynth`、`ffms2`、`libvpx`、`mkvtoolnix-cli`、官方 `svt-av1`、`vmaf`、`av1an`、`wget`、`unzip`、`nano`、`opus-tools`、`python-pip`，以及多個 VapourSynth AUR plugins、`kagefunc.py`、`fvsfunc.py`、`mvsfunc.py`。 |
-| `cutexing/encoder:psyex-v3.0.2B-tools` | `variants/psyex-tools/Dockerfile` | 以 `cutexing/encoder:latest` 為 base，將 `SvtAv1EncApp` 替換為 `SVT-AV1-PSYEX v3.0.2-B`，並加入 `rclone`、`gh`、`fuse3` / `fusermount3`、`mktorrent`。目前已推送 digest：`sha256:89ea6918d5cd9f2338496f495de817066325c9f5cdf7404bd3328af40a6e73d0`。 |
+| `cutexing/encoder:psyex-v3.0.2B-tools` | `variants/psyex-tools/Dockerfile` | 以 `cutexing/encoder:latest` 為 base，將 `SvtAv1EncApp` 替換為 `SVT-AV1-PSYEX v3.0.2-B`，並加入 `rclone`、`gh`、`fuse3` / `fusermount3`、`mktorrent`、`mediainfo`。目前已推送 digest：`sha256:4dd06c8e4fc7bfd142a974876844b8157d4446aa840368c327f28cffceec5f70`。 |
 
 ## 基本使用
 
@@ -38,6 +38,7 @@ docker run --rm cutexing/encoder:psyex-v3.0.2B-tools SvtAv1EncApp --version
 docker run --rm cutexing/encoder:psyex-v3.0.2B-tools rclone version
 docker run --rm cutexing/encoder:psyex-v3.0.2B-tools gh --version
 docker run --rm cutexing/encoder:psyex-v3.0.2B-tools mktorrent -h
+docker run --rm cutexing/encoder:psyex-v3.0.2B-tools mediainfo --Version
 ```
 
 ## rclone config 掛載

@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
 ARG BASE_IMAGE=cutexing/encoder:latest
+ARG ARCH_REPO_DATE=2026/05/22
+ARG MEDIAINFO_ARCH_REPO_DATE=2025/10/23
 ARG SVT_AV1_PSYEX_URL=https://github.com/BlueSwordM/svt-av1-psyex/releases/download/v3.0.2-B/Linux_svt-av1-psyex-v3.0.2B_x86-64-v3_avx2.tar.lzma
 
 FROM debian:bookworm-slim AS svt-av1-psyex
@@ -20,21 +22,28 @@ RUN set -eux; \
 
 FROM ${BASE_IMAGE}
 
+ARG ARCH_REPO_DATE
+ARG MEDIAINFO_ARCH_REPO_DATE
+
 USER root
 
 RUN set -eux; \
+    printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${ARCH_REPO_DATE}" > /etc/pacman.d/mirrorlist; \
     pacman-key --init; \
     pacman-key --populate archlinux; \
-    pacman -Sy --noconfirm --needed archlinux-keyring; \
+    pacman -Syy --noconfirm --needed archlinux-keyring; \
     pacman-key --populate archlinux; \
     pacman -S --noconfirm --needed ca-certificates github-cli rclone fuse3 mktorrent; \
+    printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${MEDIAINFO_ARCH_REPO_DATE}" > /etc/pacman.d/mirrorlist; \
+    pacman -Syy --noconfirm --needed mediainfo; \
     if [ -f /etc/fuse.conf ]; then sed -i 's/^#user_allow_other/user_allow_other/' /etc/fuse.conf || true; fi; \
     rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/*; \
     git --version; \
     gh --version; \
     rclone version; \
     command -v mktorrent; \
-    mktorrent -h >/dev/null
+    mktorrent -h >/dev/null; \
+    mediainfo --Version
 
 COPY --from=svt-av1-psyex /opt/svt-av1-psyex /tmp/svt-av1-psyex
 
