@@ -33,7 +33,7 @@ RUN set -eux; \
     pacman-key --populate archlinux; \
     pacman -Syy --noconfirm --needed archlinux-keyring; \
     pacman-key --populate archlinux; \
-    pacman -S --noconfirm --needed ca-certificates github-cli rclone fuse3 mktorrent; \
+    pacman -S --noconfirm --needed ca-certificates github-cli rclone fuse3 mktorrent opencc; \
     printf 'Server = https://archive.archlinux.org/repos/%s/$repo/os/$arch\n' "${MEDIAINFO_ARCH_REPO_DATE}" > /etc/pacman.d/mirrorlist; \
     pacman -Syy --noconfirm --needed mediainfo; \
     if [ -f /etc/fuse.conf ]; then sed -i 's/^#user_allow_other/user_allow_other/' /etc/fuse.conf || true; fi; \
@@ -43,6 +43,7 @@ RUN set -eux; \
     rclone version; \
     command -v mktorrent; \
     mktorrent -h >/dev/null; \
+    opencc --version; \
     mediainfo --Version
 
 COPY --from=svt-av1-psyex /opt/svt-av1-psyex /tmp/svt-av1-psyex
