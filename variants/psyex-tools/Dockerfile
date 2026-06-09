@@ -3,6 +3,9 @@
 ARG BASE_IMAGE=cutexing/encoder:latest
 ARG ARCH_REPO_DATE=2026/05/22
 ARG MEDIAINFO_ARCH_REPO_DATE=2025/10/23
+ARG MAKEPKG_CFLAGS="-march=x86-64-v3 -mtune=generic -O3 -pipe -fno-plt"
+ARG MAKEPKG_RUSTFLAGS="-C target-cpu=x86-64-v3"
+ARG MAKEPKG_MAKEFLAGS=auto
 ARG SVT_AV1_PSYEX_URL=https://github.com/BlueSwordM/svt-av1-psyex/releases/download/v3.0.2-B/Linux_svt-av1-psyex-v3.0.2B_x86-64-v3_avx2.tar.lzma
 
 FROM debian:bookworm-slim AS svt-av1-psyex
@@ -24,6 +27,9 @@ FROM ${BASE_IMAGE}
 
 ARG ARCH_REPO_DATE
 ARG MEDIAINFO_ARCH_REPO_DATE
+ARG MAKEPKG_CFLAGS
+ARG MAKEPKG_RUSTFLAGS
+ARG MAKEPKG_MAKEFLAGS
 
 USER root
 
@@ -45,6 +51,42 @@ RUN set -eux; \
     mktorrent -h >/dev/null; \
     opencc --version; \
     mediainfo --Version
+
+RUN set -eux; \
+    sed -i "s|^CFLAGS=.*|CFLAGS=\"${MAKEPKG_CFLAGS}\"|" /etc/makepkg.conf; \
+    sed -i "s|^CXXFLAGS=.*|CXXFLAGS=\"${MAKEPKG_CFLAGS}\"|" /etc/makepkg.conf; \
+    if grep -q '^RUSTFLAGS=' /etc/makepkg.conf; then sed -i "s|^RUSTFLAGS=.*|RUSTFLAGS=\"${MAKEPKG_RUSTFLAGS}\"|" /etc/makepkg.conf; else printf '\nRUSTFLAGS="%s"\n' "${MAKEPKG_RUSTFLAGS}" >> /etc/makepkg.conf; fi; \
+    if [ "${MAKEPKG_MAKEFLAGS}" = "auto" ]; then jobs="$(nproc)"; else jobs="${MAKEPKG_MAKEFLAGS}"; fi; \
+    if grep -q '^#\?MAKEFLAGS=' /etc/makepkg.conf; then sed -i "s|^#\?MAKEFLAGS=.*|MAKEFLAGS=\"-j${jobs}\"|" /etc/makepkg.conf; else printf '\nMAKEFLAGS="-j%s"\n' "${jobs}" >> /etc/makepkg.conf; fi; \
+    grep -E '^(CFLAGS|CXXFLAGS|RUSTFLAGS|MAKEFLAGS)=' /etc/makepkg.conf
+
+USER user
+WORKDIR /home/user
+
+RUN set -eux; \
+    wget -qO /tmp/rustup-init.sh https://sh.rustup.rs; \
+    sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable --no-modify-path; \
+    . "${HOME}/.cargo/env"; \
+    git clone https://github.com/kageru/adaptivegrain.git; \
+    cd adaptivegrain; \
+    RUSTFLAGS="${MAKEPKG_RUSTFLAGS}" cargo build --release --locked; \
+    rm -rf "${HOME}/.cargo" "${HOME}/.rustup" /tmp/rustup-init.sh
+
+USER root
+WORKDIR /videos
+
+RUN set -eux; \
+    install -Dm755 /home/user/adaptivegrain/target/release/libadaptivegrain_rs.so /usr/lib/vapoursynth/libadaptivegrain.so; \
+    rm -rf /home/user/adaptivegrain; \
+    python -m pip install --break-system-packages --no-cache-dir --no-deps vapoursynth-akarin vsutil; \
+    site_packages="$(python -c 'import site; print(site.getsitepackages()[0])')"; \
+    wget -O "${site_packages}/kagefunc.py" https://raw.githubusercontent.com/Irrational-Encoding-Wizardry/kagefunc/refs/heads/master/kagefunc.py; \
+    wget -O "${site_packages}/fvsfunc.py" https://raw.githubusercontent.com/Irrational-Encoding-Wizardry/fvsfunc/refs/heads/master/fvsfunc.py; \
+    wget -O /tmp/mvsfunc-r10.zip https://github.com/HomeOfVapourSynthEvolution/mvsfunc/archive/refs/tags/r10.zip; \
+    unzip -o /tmp/mvsfunc-r10.zip -d /tmp; \
+    mv /tmp/mvsfunc-r10/mvsfunc.py "${site_packages}/mvsfunc.py"; \
+    rm -rf /tmp/mvsfunc-r10 /tmp/mvsfunc-r10.zip; \
+    python -c "import vapoursynth as vs, kagefunc as kgf; core = vs.core; clip = core.std.BlankClip(width=128, height=72, format=vs.YUV420P8, length=1); kgf.adaptive_grain(clip, strength=0.1).get_frame(0); print('kagefunc adaptive_grain ok')"
 
 COPY --from=svt-av1-psyex /opt/svt-av1-psyex /tmp/svt-av1-psyex
 
