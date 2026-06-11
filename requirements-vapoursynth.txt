@@ -1,0 +1,5 @@
+--extra-index-url https://jaded-encoding-thaumaturgy.github.io/vs-wheels/simple
+
+VapourSynth>=76
+vsjetpack[deband]>=1.5.0
+vapoursynth-vszip>=14.3.0
