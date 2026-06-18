@@ -1,6 +1,6 @@
 # linux_encoder
 
-這個 repository 保存 `cutexing/encoder` 系列 image 的 Dockerfile。根目錄 `Dockerfile` 是原始 Arch Linux 壓片環境；額外變體會放在 `variants/` 底下，方便之後擴充而不混在同一個檔案裡。
+這個 repository 保存 `cutexing/encoder` 系列 image 的 Dockerfile。現在只保留新版 `auto_encoder` / VapourSynth R76 環境，以及使用 5fish `svt-av1-psy` 的 AVX2 變體。
 
 [手動部署說明](https://blog.cutexing.com/2025/03/20/linux-%e5%a3%93%e7%89%87%e7%92%b0%e5%a2%83%e5%bb%ba%e7%ab%8b%e6%8c%87%e5%8d%97/)
 
@@ -8,29 +8,10 @@
 
 | Docker tag | Dockerfile | 內容 |
 | --- | --- | --- |
-| `cutexing/encoder:latest` | `Dockerfile` | 原始 Arch Linux 壓片環境。包含 `git`、`yay`、`aom`、`vapoursynth`、`ffms2`、`libvpx`、`mkvtoolnix-cli`、官方 `svt-av1`、`vmaf`、`av1an`、`wget`、`unzip`、`nano`、`opus-tools`、`python-pip`，以及多個 VapourSynth AUR plugins、`kagefunc.py`、`fvsfunc.py`、`mvsfunc.py`。 |
-| `cutexing/encoder:psyex-v3.0.2B-tools` | `variants/psyex-tools/Dockerfile` | 以 `cutexing/encoder:latest` 為 base，將 `SvtAv1EncApp` 替換為 `SVT-AV1-PSYEX v3.0.2-B`，並加入 `rclone`、`gh`、`fuse3` / `fusermount3`、`mktorrent`、`opencc`、`mediainfo`。目前已推送 digest：`sha256:82816c638df270ab096b5223c59250c407eed022be5991856d76dba3b481777e`。 |
-| `cutexing/encoder:auto-encoder-vs76` | `variants/auto-encoder-vs76/Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:2c00c7b38806bc2f4c3b60550e2bbae57119cb98e7038b16f68ac33094185c02`。 |
+| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:2c00c7b38806bc2f4c3b60550e2bbae57119cb98e7038b16f68ac33094185c02`。 |
+| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 基於 `main` 的 VapourSynth R76/JET/vszip 環境，將 `SvtAv1EncApp` 替換為 5fish `svt-av1-psy` commit `b8f24a7113ddc4d12a1b5ccfe47ca1c4626c58d5`，並以 AVX2 / `x86-64-v3` 編譯。目前已推送 digest：`sha256:243cce08c8af06a2db2b38080fe554e06703de4bb163af4d9412bf1ccb276a67`。 |
 
 ## 基本使用
-
-把本機影片資料夾掛到容器內 `/videos`：
-
-```bash
-docker run --privileged \
-  -v /your/video/dir:/videos \
-  -it --rm \
-  cutexing/encoder:latest
-```
-
-使用 PSYEX + tools 版本：
-
-```bash
-docker run --privileged \
-  -v /your/video/dir:/videos \
-  -it --rm \
-  cutexing/encoder:psyex-v3.0.2B-tools
-```
 
 使用新版 `auto_encoder` / VapourSynth R76 版本：
 
@@ -38,7 +19,16 @@ docker run --privileged \
 docker run --rm -it \
   -v /path/to/auto_encoder:/work \
   -v /path/to/videos:/videos \
-  cutexing/encoder:auto-encoder-vs76
+  cutexing/encoder:main
+```
+
+使用 5fish `svt-av1-psy` 版本：
+
+```bash
+docker run --rm -it \
+  -v /path/to/auto_encoder:/work \
+  -v /path/to/videos:/videos \
+  cutexing/encoder:5fish-av1
 ```
 
 進入容器後可以直接跑：
@@ -51,47 +41,34 @@ python /work/auto_encoder.py plan \
 確認工具版本：
 
 ```bash
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools SvtAv1EncApp --version
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools rclone version
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools gh --version
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools mktorrent -h
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools opencc --version
-docker run --rm cutexing/encoder:psyex-v3.0.2B-tools mediainfo --Version
-docker run --rm cutexing/encoder:auto-encoder-vs76 sh -lc 'vapoursynth get-vsscript && vspipe --version && av1an --version && SvtAv1EncApp --version'
+docker run --rm cutexing/encoder:main sh -lc 'vapoursynth get-vsscript && vspipe --version && av1an --version && SvtAv1EncApp --version'
+docker run --rm cutexing/encoder:5fish-av1 sh -lc 'vapoursynth get-vsscript && vspipe --version && av1an --version && SvtAv1EncApp --version'
 ```
 
 ## Build
 
-建置原始版本：
+建置 `main`：
 
 ```bash
-docker build -t cutexing/encoder:latest .
+docker build -t cutexing/encoder:main .
 ```
 
-建置 PSYEX + tools 版本：
+建置 5fish `svt-av1-psy` 版本：
 
 ```bash
 docker build \
-  -f variants/psyex-tools/Dockerfile \
-  -t cutexing/encoder:psyex-v3.0.2B-tools .
-```
-
-建置新版 `auto_encoder` / VapourSynth R76 版本：
-
-```bash
-docker build \
-  -f variants/auto-encoder-vs76/Dockerfile \
-  -t cutexing/encoder:auto-encoder-vs76 .
+  -f variants/5fish-av1/Dockerfile \
+  -t cutexing/encoder:5fish-av1 .
 ```
 
 ## rclone config 掛載
 
-一般使用者的 rclone config 通常在 `$HOME/.config/rclone`：
+容器內有 `rclone`，但不會內建憑證。把 host 的 rclone config 掛進去即可：
 
 ```bash
 docker run --rm -it \
   -v "$HOME/.config/rclone:/root/.config/rclone:ro" \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   sh -lc 'rclone config file && rclone listremotes'
 ```
 
@@ -100,7 +77,7 @@ docker run --rm -it \
 ```bash
 sudo docker run --rm -it \
   -v /root/.config/rclone:/root/.config/rclone:ro \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   sh -lc 'rclone config file && rclone listremotes'
 ```
 
@@ -117,22 +94,7 @@ docker run --rm -it \
   --security-opt apparmor:unconfined \
   -v "$HOME/.config/rclone:/root/.config/rclone:ro" \
   -v "$PWD/rclone-mount:/mnt/rclone:shared" \
-  cutexing/encoder:psyex-v3.0.2B-tools \
-  sh -lc 'mkdir -p /mnt/rclone && rclone mount <remote>:<path> /mnt/rclone --allow-other --vfs-cache-mode writes'
-```
-
-使用 root config 的版本：
-
-```bash
-sudo mkdir -p /mnt/rclone
-
-sudo docker run --rm -it \
-  --cap-add SYS_ADMIN \
-  --device /dev/fuse \
-  --security-opt apparmor:unconfined \
-  -v /root/.config/rclone:/root/.config/rclone:ro \
-  -v /mnt/rclone:/mnt/rclone:shared \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   sh -lc 'mkdir -p /mnt/rclone && rclone mount <remote>:<path> /mnt/rclone --allow-other --vfs-cache-mode writes'
 ```
 
@@ -145,7 +107,7 @@ sudo docker run --rm -it \
 ```bash
 docker run --rm -it \
   -v "$HOME/.config/gh:/root/.config/gh:ro" \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   gh auth status
 ```
 
@@ -158,7 +120,7 @@ docker run --rm -it \
   -v "$HOME/.gitconfig:/root/.gitconfig:ro" \
   -v "$PWD:/work" \
   -w /work \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   sh -lc 'gh auth status && git status'
 ```
 
@@ -168,7 +130,7 @@ docker run --rm -it \
 docker run --rm -it \
   -v "$PWD:/work" \
   -w /work \
-  cutexing/encoder:psyex-v3.0.2B-tools \
+  cutexing/encoder:main \
   mktorrent -a <tracker-url> <path>
 ```
 
@@ -177,4 +139,4 @@ docker run --rm -it \
 - image 不會包入 rclone 或 GitHub 憑證；請用 volume mount 掛入 config。
 - config 建議使用 `:ro` 唯讀掛載，除非需要在容器內更新登入狀態。
 - `rclone mount` 的 host 掛載點需要使用 shared propagation；Docker Desktop、rootless Docker 或部分 VPS kernel 設定可能需要額外調整。
-- `requirements-vapoursynth.txt` 是 `auto-encoder-vs76` 的 build context 依賴清單；更新 `auto_encoder` 模板依賴時要一起同步。
+- `requirements-vapoursynth.txt` 是 `main` / `5fish-av1` 的 build context 依賴清單；更新 `auto_encoder` 模板依賴時要一起同步。

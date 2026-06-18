@@ -1,14 +1,18 @@
 # syntax=docker/dockerfile:1.7
 
-ARG SVT_AV1_PSYEX_URL=https://github.com/BlueSwordM/svt-av1-psyex/releases/download/v3.0.2-B/Linux_svt-av1-psyex-v3.0.2B_x86-64-v3_avx2.tar.lzma
+ARG SVT_AV1_PSY_REPO=https://github.com/5fish/svt-av1-psy.git
+ARG SVT_AV1_PSY_REF=b8f24a7113ddc4d12a1b5ccfe47ca1c4626c58d5
 ARG AV1AN_REPO=https://github.com/rust-av/Av1an.git
 ARG AV1AN_REF=962c57a1170e12e3ed0a287cc409ee1bc342821c
 ARG ARCH_MIRROR=https://mirror.rackspace.com/archlinux
 
-FROM archlinux:base-devel AS svt-av1-psyex
+FROM archlinux:base-devel AS svt-av1-psy-builder
 
 ARG ARCH_MIRROR
-ARG SVT_AV1_PSYEX_URL
+ARG SVT_AV1_PSY_REPO
+ARG SVT_AV1_PSY_REF
+ARG MAKEPKG_CFLAGS="-march=x86-64-v3 -mtune=generic -O3 -pipe -fno-plt"
+ARG MAKEPKG_MAKEFLAGS=auto
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -16,14 +20,31 @@ RUN set -eux; \
     printf 'Server = %s/$repo/os/$arch\n' "${ARCH_MIRROR}" > /etc/pacman.d/mirrorlist; \
     sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf; \
     pacman -Syu --noconfirm; \
-    pacman -S --noconfirm --needed ca-certificates curl tar xz; \
+    pacman -S --noconfirm --needed ca-certificates cmake git nasm ninja; \
     rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/*
 
 RUN set -eux; \
-    mkdir -p /opt/svt-av1-psyex; \
-    curl -fL "${SVT_AV1_PSYEX_URL}" -o /tmp/svt-av1-psyex.tar.lzma; \
-    xz -dc /tmp/svt-av1-psyex.tar.lzma | tar -x -C /opt/svt-av1-psyex; \
-    test -n "$(find /opt/svt-av1-psyex -type f -name SvtAv1EncApp -print -quit)"
+    git init /opt/svt-av1-psy; \
+    cd /opt/svt-av1-psy; \
+    git remote add origin "${SVT_AV1_PSY_REPO}"; \
+    git fetch --depth 1 origin "${SVT_AV1_PSY_REF}"; \
+    git checkout --detach FETCH_HEAD; \
+    test "$(git rev-parse HEAD)" = "${SVT_AV1_PSY_REF}"; \
+    cmake -S . -B build -G Ninja \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/opt/svt-av1-psy-install \
+        -DCMAKE_C_FLAGS="${MAKEPKG_CFLAGS}" \
+        -DCMAKE_CXX_FLAGS="${MAKEPKG_CFLAGS}" \
+        -DCMAKE_ASM_NASM_COMPILER=nasm \
+        -DENABLE_NASM=ON \
+        -DENABLE_AVX512=OFF \
+        -DNATIVE=OFF; \
+    if [ "${MAKEPKG_MAKEFLAGS}" = "auto" ]; then jobs="$(nproc)"; else jobs="${MAKEPKG_MAKEFLAGS}"; fi; \
+    cmake --build build --parallel "${jobs}"; \
+    cmake --install build; \
+    test -n "$(find /opt/svt-av1-psy-install -type f -name SvtAv1EncApp -print -quit)"; \
+    LD_LIBRARY_PATH="/opt/svt-av1-psy-install/lib:/opt/svt-av1-psy-install/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
+        /opt/svt-av1-psy-install/bin/SvtAv1EncApp --version
 
 FROM archlinux:base-devel AS av1an-builder
 
@@ -61,7 +82,7 @@ ARG MAKEPKG_RUSTFLAGS="-C target-cpu=x86-64-v3"
 ARG MAKEPKG_MAKEFLAGS=auto
 
 LABEL org.opencontainers.image.title="auto_encoder VapourSynth runtime"
-LABEL org.opencontainers.image.description="Arch Linux runtime for auto_encoder's VapourSynth R76/JET/vszip templates; assumes AVX2/x86-64-v3 capable servers."
+LABEL org.opencontainers.image.description="Arch Linux runtime for auto_encoder's VapourSynth R76/JET/vszip templates with 5fish SVT-AV1-PSY b8f24a7 built for AVX2/x86-64-v3 servers."
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
@@ -156,16 +177,16 @@ RUN set -eux; \
         > /usr/local/bin/av1an; \
     chmod 755 /usr/local/bin/av1an
 
-COPY --from=svt-av1-psyex /opt/svt-av1-psyex /tmp/svt-av1-psyex
+COPY --from=svt-av1-psy-builder /opt/svt-av1-psy-install /tmp/svt-av1-psy
 
 RUN set -eux; \
-    new_bin="$(find /tmp/svt-av1-psyex -type f -name SvtAv1EncApp -print -quit)"; \
+    new_bin="$(find /tmp/svt-av1-psy -type f -name SvtAv1EncApp -print -quit)"; \
     test -n "${new_bin}"; \
-    mkdir -p /usr/local/lib; \
+    mkdir -p /usr/lib; \
     install -Dm755 "${new_bin}" /usr/local/bin/SvtAv1EncApp; \
-    find /tmp/svt-av1-psyex \( -type f -o -type l \) -name 'libSvtAv1*.so*' -exec cp -a {} /usr/local/lib/ \; ; \
+    find /tmp/svt-av1-psy \( -type f -o -type l \) -name 'libSvtAv1*.so*' -exec cp -a {} /usr/lib/ \; ; \
     if command -v ldconfig >/dev/null 2>&1; then ldconfig; fi; \
-    rm -rf /tmp/svt-av1-psyex; \
+    rm -rf /tmp/svt-av1-psy; \
     SvtAv1EncApp --version
 
 RUN set -eux; \
