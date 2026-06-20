@@ -20,7 +20,7 @@ RUN set -eux; \
     printf 'Server = %s/$repo/os/$arch\n' "${ARCH_MIRROR}" > /etc/pacman.d/mirrorlist; \
     sed -i 's/^#ParallelDownloads.*/ParallelDownloads = 5/' /etc/pacman.conf; \
     pacman -Syu --noconfirm; \
-    pacman -S --noconfirm --needed ca-certificates cmake git nasm ninja; \
+    pacman -S --noconfirm --needed ca-certificates clang cmake git lld llvm nasm ninja; \
     rm -rf /var/cache/pacman/pkg/* /var/lib/pacman/sync/*
 
 RUN set -eux; \
@@ -30,21 +30,33 @@ RUN set -eux; \
     git fetch --depth 1 origin "${SVT_AV1_PSY_REF}"; \
     git checkout --detach FETCH_HEAD; \
     test "$(git rev-parse HEAD)" = "${SVT_AV1_PSY_REF}"; \
-    cmake -S . -B build -G Ninja \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_INSTALL_PREFIX=/opt/svt-av1-psy-install \
-        -DCMAKE_C_FLAGS="${MAKEPKG_CFLAGS}" \
-        -DCMAKE_CXX_FLAGS="${MAKEPKG_CFLAGS}" \
-        -DCMAKE_ASM_NASM_COMPILER=nasm \
-        -DENABLE_NASM=ON \
-        -DENABLE_AVX512=OFF \
-        -DNATIVE=OFF; \
     if [ "${MAKEPKG_MAKEFLAGS}" = "auto" ]; then jobs="$(nproc)"; else jobs="${MAKEPKG_MAKEFLAGS}"; fi; \
-    cmake --build build --parallel "${jobs}"; \
-    cmake --install build; \
+    AR=llvm-ar RANLIB=llvm-ranlib \
+        Build/linux/build.sh \
+            --disable-native \
+            --disable-avx512 \
+            --static \
+            --release \
+            --enable-lto \
+            --enable-pgo \
+            --asm nasm \
+            --cc clang \
+            --cxx clang++ \
+            --gen Ninja \
+            --jobs "${jobs}" \
+            --prefix /opt/svt-av1-psy-install \
+            --install \
+            -- \
+            -DCMAKE_C_FLAGS="${MAKEPKG_CFLAGS}" \
+            -DCMAKE_CXX_FLAGS="${MAKEPKG_CFLAGS}" \
+            -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=lld" \
+            -DCMAKE_MODULE_LINKER_FLAGS="-fuse-ld=lld"; \
+    new_bin="$(find /opt/svt-av1-psy -type f -name SvtAv1EncApp -perm -111 -print -quit)"; \
+    test -n "${new_bin}"; \
+    install -Dm755 "${new_bin}" /opt/svt-av1-psy-install/bin/SvtAv1EncApp; \
     test -n "$(find /opt/svt-av1-psy-install -type f -name SvtAv1EncApp -print -quit)"; \
-    LD_LIBRARY_PATH="/opt/svt-av1-psy-install/lib:/opt/svt-av1-psy-install/lib64${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}" \
-        /opt/svt-av1-psy-install/bin/SvtAv1EncApp --version
+    /opt/svt-av1-psy-install/bin/SvtAv1EncApp --version
 
 FROM archlinux:base-devel AS av1an-builder
 
@@ -82,7 +94,7 @@ ARG MAKEPKG_RUSTFLAGS="-C target-cpu=x86-64-v3"
 ARG MAKEPKG_MAKEFLAGS=auto
 
 LABEL org.opencontainers.image.title="auto_encoder VapourSynth runtime"
-LABEL org.opencontainers.image.description="Arch Linux runtime for auto_encoder's VapourSynth R76/JET/vszip templates with 5fish SVT-AV1-PSY b8f24a7 built for AVX2/x86-64-v3 servers."
+LABEL org.opencontainers.image.description="Arch Linux runtime for auto_encoder's VapourSynth R76/JET/vszip templates with 5fish SVT-AV1-PSY b8f24a7 built static for AVX2/x86-64-v3 with LLVM clang, LLD, NASM, LTO, and PGO."
 
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
