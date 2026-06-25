@@ -130,6 +130,8 @@ RUN python - <<'PY'
 import vapoursynth as vs
 from vsaa import NNEDI3, pre_aa
 from vsdehalo import hq_dering
+from vsdenoise import bm3d
+from vsdenoise.fft import DFTTest
 from vsmasktools import Morpho, dre_edgemask
 from vssource import BestSource
 from vstools import depth, get_y

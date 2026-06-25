@@ -8,8 +8,8 @@
 
 | Docker tag | Dockerfile | 內容 |
 | --- | --- | --- |
-| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:2c00c7b38806bc2f4c3b60550e2bbae57119cb98e7038b16f68ac33094185c02`。 |
-| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 基於 `main` 的 VapourSynth R76/JET/vszip 環境，將 `SvtAv1EncApp` 替換為 5fish `svt-av1-psy` commit `b8f24a7113ddc4d12a1b5ccfe47ca1c4626c58d5`，並以 AVX2 / `x86-64-v3` 編譯。目前已推送 digest：`sha256:243cce08c8af06a2db2b38080fe554e06703de4bb163af4d9412bf1ccb276a67`。 |
+| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband,denoise]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018`。 |
+| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 基於 `main` 的 VapourSynth R76/JET/vszip 環境，將 `SvtAv1EncApp` 替換為 5fish `svt-av1-psy` commit `b8f24a7113ddc4d12a1b5ccfe47ca1c4626c58d5`，並以 AVX2 / `x86-64-v3` 編譯。目前已推送 digest：`sha256:c540c113c5973173580518152d57de63af8ca5f6acdccc0760978a47a4a0b4d9`。 |
 
 ## 基本使用
 
