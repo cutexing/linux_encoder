@@ -163,6 +163,7 @@ RUN python - <<'PY'
 import vapoursynth as vs
 from vsaa import NNEDI3, pre_aa
 from vsdehalo import hq_dering
+import vsdeinterlace
 from vsdenoise import bm3d
 from vsdenoise.fft import DFTTest
 from vsmasktools import Morpho, dre_edgemask
@@ -170,7 +171,7 @@ from vssource import BestSource
 from vstools import depth, get_y
 
 core = vs.core
-missing = [namespace for namespace in ("vszip",) if not hasattr(core, namespace)]
+missing = [namespace for namespace in ("vivtc", "vszip") if not hasattr(core, namespace)]
 if missing:
     raise SystemExit(f"Missing VapourSynth plugin namespace(s): {', '.join(missing)}")
 print(core.version())
