@@ -8,8 +8,8 @@
 
 | Docker tag | Dockerfile | 內容 |
 | --- | --- | --- |
-| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband,deinterlace,denoise]`、`vapoursynth-vivtc`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018`。 |
-| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 基於 `main` 的 VapourSynth R76/JET/vivtc/vszip 環境，將 `SvtAv1EncApp` 替換為 5fish `svt-av1-psy` commit `b8f24a7113ddc4d12a1b5ccfe47ca1c4626c58d5`，並以 AVX2 / `x86-64-v3` 編譯。目前已推送 digest：`sha256:a77b61881b3a6198161be03485c6e295af8985b6297a6e81f1365fac1e603ab7`。 |
+| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband,denoise]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018`。 |
+| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 鎖定舊版 5fish image `sha256:c540c113c5973173580518152d57de63af8ca5f6acdccc0760978a47a4a0b4d9` 為不可變基底，保留 VapourSynth 77、`vsjetpack` 1.5.0、`vapoursynth-vszip` 17.0.0、FFmpeg 8.1.2 與 5fish `svt-av1-psy` `b8f24a7`，只以 `--no-deps` 新增 `vapoursynth-vivtc` 2.0。目前已推送 digest：`sha256:8246c80841c8990283d9a9dfdcdd4e24d316c7aa1fa8aaa40a4d3af774e8f1e8`。 |
 
 ## 基本使用
 
@@ -139,4 +139,4 @@ docker run --rm -it \
 - image 不會包入 rclone 或 GitHub 憑證；請用 volume mount 掛入 config。
 - config 建議使用 `:ro` 唯讀掛載，除非需要在容器內更新登入狀態。
 - `rclone mount` 的 host 掛載點需要使用 shared propagation；Docker Desktop、rootless Docker 或部分 VPS kernel 設定可能需要額外調整。
-- `requirements-vapoursynth.txt` 是 `main` / `5fish-av1` 的 build context 依賴清單；更新 `auto_encoder` 模板依賴時要一起同步。
+- `requirements-vapoursynth.txt` 是 `main` 的依賴清單；`5fish-av1` 則以 `5fish-av1-base-c540c113@sha256:c540c113c5973173580518152d57de63af8ca5f6acdccc0760978a47a4a0b4d9` 鎖定完整舊環境，並由 `variants/5fish-av1/requirements-ivtc.txt` 單獨鎖定 IVTC 套件。
