@@ -1,2 +1,0 @@
-# Keep security build inputs byte-identical to their recorded SHA256 provenance.
-variants/security/* -text whitespace=trailing-space,space-before-tab,cr-at-eol
