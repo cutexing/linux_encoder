@@ -1,6 +1,6 @@
 # linux_encoder
 
-這個 repository 保存 `cutexing/encoder` 系列 image 的 Dockerfile。現在只保留新版 `auto_encoder` / VapourSynth R76 環境，以及使用 5fish `svt-av1-psy` 的 AVX2 變體。
+這個 repository 保存 `cutexing/encoder` 系列 image 的 Dockerfile。目前提供新版 `auto_encoder` 環境，以及使用 5fish `svt-av1-psy` 的 AVX2 變體；兩個已發布映像均保留 VapourSynth 77。
 
 [手動部署說明](https://blog.cutexing.com/2025/03/20/linux-%e5%a3%93%e7%89%87%e7%92%b0%e5%a2%83%e5%bb%ba%e7%ab%8b%e6%8c%87%e5%8d%97/)
 
@@ -8,8 +8,61 @@
 
 | Docker tag | Dockerfile | 內容 |
 | --- | --- | --- |
-| `cutexing/encoder:main` | `Dockerfile` | 專供新版 `auto_encoder` VapourSynth/JET 模板使用。使用 VapourSynth R76+、`vsjetpack[deband,denoise]`、`vapoursynth-vszip`、`BestSource` / `vssource`、upstream pinned `av1an`，並以 `SVT-AV1-PSYEX v3.0.2-B` 的 `x86-64-v3_avx2` build 作為 AVX2 server baseline。目前已推送 digest：`sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018`。 |
-| `cutexing/encoder:5fish-av1` | `variants/5fish-av1/Dockerfile` | 鎖定舊版 5fish image `sha256:c540c113c5973173580518152d57de63af8ca5f6acdccc0760978a47a4a0b4d9` 為不可變基底，保留 VapourSynth 77、`vsjetpack` 1.5.0、`vapoursynth-vszip` 17.0.0、FFmpeg 8.1.2 與 5fish `svt-av1-psy` `b8f24a7`，只以 `--no-deps` 新增 `vapoursynth-vivtc` 2.0。目前已推送 digest：`sha256:8246c80841c8990283d9a9dfdcdd4e24d316c7aa1fa8aaa40a4d3af774e8f1e8`。 |
+| `cutexing/encoder:main` | `variants/security/Dockerfile`（指定 main 基底，見下方指令） | 新版 `auto_encoder` VapourSynth/JET 模板、`BestSource` / `vssource`、upstream pinned `av1an`，以及 `SVT-AV1-PSYEX v3.0.2-B` 的 AVX2 build，加入下列安全更新。已推送 digest：`sha256:f02d9a292298fc325220fa9834f81769dc53fa15852e61ae7def2b5a0e7d6583`。 |
+| `cutexing/encoder:5fish-av1` | `variants/security/Dockerfile` | 保留 VapourSynth 77、`vsjetpack` 1.5.0、`vapoursynth-vszip` 17.0.0、FFmpeg 8.1.2、5fish `svt-av1-psy` `b8f24a7` 與 `vapoursynth-vivtc` 2.0，加入下列安全更新。已推送 digest：`sha256:5d63ac07d36f096aa8710ee5287f8ab1d5b4d97d3af7a000da312156d959e8dd`。 |
+
+## 2026-10-23 安全更新層
+
+`variants/security/Dockerfile` 從安全更新前的不可變 image digest 建置：main 為 `sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018`，5fish 為 `sha256:8246c80841c8990283d9a9dfdcdd4e24d316c7aa1fa8aaa40a4d3af774e8f1e8`。原始環境的建置配方仍保留在根目錄 `Dockerfile` 與 `variants/5fish-av1/Dockerfile`。安全層保留 VapourSynth 77、JET 1.5.0、vszip 17.0.0、5fish 的 IVTC 2.0，以及原有 FFmpeg／encoder。建置會逐一比對其餘 Python 套件版本、檔案 SHA256 與系統套件版本；不會重新解析或升級 VapourSynth、插件、NumPy 等依賴。
+
+| 項目 | 安全更新版本 |
+| --- | --- |
+| 宿主機 Docker／containerd／runc | 29.9.2／2.4.2／1.5.2 |
+| Python | 3.14.8，維持 Python 3.14 ABI |
+| pip／其內嵌 urllib3 | 26.2.2／2.8.0 |
+| cryptography／setuptools | 50.0.2／83.0.0 |
+| OpenSSL／Expat | 3.6.5／2.8.5 |
+| glibc／Mozilla CA bundle | 2.44+r50+g1848099f063e／3.132 |
+| rclone／GitHub CLI | 1.75.2／2.103.0，均以 Go 1.27.3 重建 |
+
+Python 的官方 Arch 套件需要 glibc 2.44，因此兩者一起更新。只安裝 `os-packages.json` 列出的版本，並驗證下載 SHA256 與 Arch 簽章；Go、CLI 原始碼與 Python wheels 也固定來源及 SHA256。未使用的 `captree` 診斷執行檔已移除，`libcap` 函式庫保留。
+
+pip 26.2.2 原本仍內嵌 urllib3 2.7.0，因此額外以官方 urllib3 2.8.0 wheel 修補 **pip 內部**的網路函式庫，並同步更新其 `vendor.txt`、SBOM、`RECORD` 與來源紀錄 `/usr/share/encoder-security/pip-urllib3.json`。這是本映像的安全覆蓋層，與未修改的官方 pip wheel 有差異；建置會實際測試修補後的 HTTPS 下載。
+
+建置指令（請在 repository 根目錄執行）：
+
+```bash
+docker build -f variants/security/Dockerfile \
+  -t cutexing/encoder:5fish-av1-security-20261023 .
+
+docker build -f variants/security/Dockerfile \
+  --build-arg BASE_IMAGE=cutexing/encoder:main@sha256:344e4b660394b93610f7ef50c4fba21b90980abc37bcd9c9a7c537fc1204f018 \
+  -t cutexing/encoder:main-security-20261023 .
+```
+
+一般不需要 FUSE 的編碼作業可使用 `--cap-drop ALL --security-opt no-new-privileges`，並依並行程序數設定 `--pids-limit`。短片回歸測試還使用了 `--network none`、唯讀 root filesystem 與 `/tmp` tmpfs；實際上傳需要網路及相應的可寫掛載。
+
+主要查核依據：
+
+- Docker registry 憑證驗證：[CVE-2026-92543](https://github.com/moby/moby/security/advisories/GHSA-7cfq-22r6-qp73)。containerd 映像 manifest 處理：[CVE-2026-95839](https://github.com/containerd/containerd/security/advisories/GHSA-vwhp-8p66-mq4f)。
+- pip URL 路徑處理：[CVE-2026-13346 與 pip 修補紀錄](https://pip.pypa.io/en/stable/news/)。urllib3 內嵌依賴：[CVE-2026-97687](https://github.com/urllib3/urllib3/security/advisories/GHSA-8988-9cw3-xx77)、[CVE-2026-97688](https://github.com/urllib3/urllib3/security/advisories/GHSA-gh4c-6fx4-qh6g)、[CVE-2026-97689](https://github.com/urllib3/urllib3/security/advisories/GHSA-vxq7-64xx-v4gw)。
+- Python：[3.14.8 安全修補](https://www.python.org/downloads/release/python-3148/)。OpenSSL：[3.6 系列安全公告](https://openssl-library.org/news/vulnerabilities-3.6/)。Expat：[2.8.5 修補紀錄](https://github.com/libexpat/libexpat/blob/R_2_8_5/expat/Changes)。
+- rclone S3／RC 驗證：[CVE-2026-88018](https://github.com/rclone/rclone/security/advisories/GHSA-xwwr-4h3p-r22c)、[CVE-2026-88044](https://github.com/rclone/rclone/security/advisories/GHSA-p569-5gjg-9cmj)。這兩項涉及特定 server 設定，不能僅由版本推定主機正遭利用。
+- cryptography：[CVE-2026-69247](https://github.com/pyca/cryptography/security/advisories/GHSA-g6cj-pr64-35w5)。setuptools：[CVE-2026-59890](https://github.com/pypa/setuptools/security/advisories/GHSA-h35f-9h28-mq5c)，其平台條件主要是 macOS 的 Unicode 正規化。
+
+驗證範圍：此為保留舊版編碼工具的受控安全更新，Arch 官方不支援部分系統升級，完整長片、所有插件功能及所有 OS CVE 並未因此獲得驗證。[Trivy 支援列表](https://trivy.dev/docs/latest/coverage/os/) 不包含 Arch OS 漏洞掃描；Python／Go 掃描結果不能代表整個 image 已沒有漏洞。既有或外部掛載的 virtualenv 也需要分別檢查。宿主機僅更新 Docker 相關套件，未執行整機 `apt upgrade` 或重開機。
+
+本次部署與掃描結果記錄於 `security-results/2026-10-23.json`：兩個 image 的原始通報數各由 157 降為 5（包含同一漏洞在不同 binary 的重複通報）。5fish 保留 52 個 Python distribution／3,618 個檔案雜湊，main 保留 51 個／3,611 個；AV1 編碼檔、FFmpeg 解碼影格與原 image 的 SHA256 均一致，BestSource 解碼也與 FFmpeg 相符，rclone 本地複製測試通過。這是短片測試結果，不代表所有長片或插件路徑都已驗證。
+
+保留原始 5 項通報及適用性判斷，沒有透過 ignore 清單隱藏結果：
+
+| 原始通報 | 已核對的適用範圍 |
+| --- | --- |
+| [msgpack GHSA-6v7p-g79w-8964](https://github.com/msgpack/msgpack-python/security/advisories/GHSA-6v7p-g79w-8964) | pip 只內嵌純 Python fallback，沒有通報所涉的 C 擴展。 |
+| setuptools CVE-2025-47273／CVE-2026-59890 | pip 的 SBOM 列出 70.3.0，但只保留 `pkg_resources` 子集，未包含有問題的 `package_index.py`／sdist 程式；實際安裝版本為 83.0.0，且後者通報的 macOS 條件不適用。 |
+| [GO-2026-5932](https://vuln.go.dev/ID/GO-2026-5932.json)，兩個 binary 各一筆 | 通報只針對 `golang.org/x/crypto/openpgp`。逐一檢查兩個 binary 的 `go list -deps`，均未使用該子套件。 |
+
+主機本地與 Docker Hub 的 `main`／`5fish-av1` 已切換至上表的安全版本，同時發布 `main-security-20261023`／`5fish-av1-security-20261023`，方便固定本次版本。原映像也已發布於 `main-pre-security-20261023`／`5fish-av1-pre-security-20261023`，可拉取並重新標記回退。發布 digest 與驗證記錄見 `security-results/2026-10-23.json`。
 
 ## 基本使用
 

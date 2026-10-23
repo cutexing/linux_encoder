@@ -1,0 +1,17 @@
+[
+  {
+    "name": "go",
+    "url": "https://go.dev/dl/go1.27.3.linux-amd64.tar.gz",
+    "sha256": "65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"
+  },
+  {
+    "name": "rclone",
+    "url": "https://github.com/rclone/rclone/archive/refs/tags/v1.75.2.tar.gz",
+    "sha256": "68afd7f68c84bd978966feae2116339aa7bf454b39c573910c462e87c3774d5a"
+  },
+  {
+    "name": "gh",
+    "url": "https://github.com/cli/cli/archive/refs/tags/v2.103.0.tar.gz",
+    "sha256": "c15a3794f56f6b9c0dca05d5f5b357f27da3c1b7031523fb42c0870ef16c6aff"
+  }
+]
